@@ -1,8 +1,17 @@
 from __future__ import annotations
 
+"""
+State Machine Service for BrajPath.
+Manages conversation flows, state transitions, and user interaction logic.
+Uses a Registry-based System Design for modularity and scalability.
+"""
+
+from typing import Callable, Optional
+
 from sqlalchemy.orm import Session
 
 from app.db.models import QueryLog, SupportRequest, UserSession
+from app.services.context_service import ContextManager
 from app.services.temple_service import (
     AREA_MAP,
     AREA_TEMPLE_MAP,
@@ -21,6 +30,17 @@ from app.services.temple_service import (
 
 LANG_MAP: dict[str, str] = {"1": "en", "2": "hi", "3": "bn", "4": "ta"}
 ENTRY_TRIGGERS: frozenset[str] = frozenset({"hi", "hello", "menu", "start", "radhe", "jai shree krishna", "hare krishna", "hare ram"})
+
+# System Design: Handler Type for state transitions
+HandlerType = Callable[[str, UserSession, ContextManager, str, str, Session], str]
+HANDLER_REGISTRY: dict[str, HandlerType] = {}
+
+
+def register_handler(state: str) -> Callable[[HandlerType], HandlerType]:
+    def decorator(handler: HandlerType) -> HandlerType:
+        HANDLER_REGISTRY[state] = handler
+        return handler
+    return decorator
 
 
 def _log(
@@ -54,22 +74,26 @@ def _main_menu_reply(lang: str) -> str:
     return tr("main_menu", lang)
 
 
-def _handle_language_select(text: str, session: UserSession, wa_number: str, incoming: str, db: Session) -> str:
+@register_handler("language_select")
+def _handle_language_select(text: str, session: UserSession, ctx: ContextManager, wa_number: str, incoming: str, db: Session) -> str:
     current_lang = session.language_code
     if text in LANG_MAP:
         chosen = LANG_MAP[text]
         save_session(db, session, state="main_menu", lang=chosen)
+        ctx.add_interaction("set_language")
         _log(db, wa_number, chosen, incoming, "language_select", "set_language", chosen)
         return _safe(_main_menu_reply(chosen))
     _log(db, wa_number, current_lang, incoming, "language_select", "invalid_input", text)
     return _safe(tr("welcome", current_lang))
 
 
-def _handle_main_menu(text: str, session: UserSession, wa_number: str, incoming: str, db: Session) -> str:
+@register_handler("main_menu")
+def _handle_main_menu(text: str, session: UserSession, ctx: ContextManager, wa_number: str, incoming: str, db: Session) -> str:
     lang = session.language_code
 
     if text == "1":
         save_session(db, session, state="main_menu")
+        ctx.add_interaction("open_now")
         _log(db, wa_number, lang, incoming, "main_menu", "open_now")
         open_list = get_open_temples(db)
         if open_list:
@@ -78,31 +102,37 @@ def _handle_main_menu(text: str, session: UserSession, wa_number: str, incoming:
 
     if text == "2":
         save_session(db, session, state="temple_area_select", pending_action="timing")
+        ctx.add_interaction("timing_select")
         _log(db, wa_number, lang, incoming, "main_menu", "timing_select")
         return _safe(get_area_menu(lang))
 
     if text == "3":
         save_session(db, session, state="temple_area_select", pending_action="route")
+        ctx.add_interaction("route_select")
         _log(db, wa_number, lang, incoming, "main_menu", "route_select")
         return _safe(get_area_menu(lang))
 
     if text == "4":
         save_session(db, session, state="main_menu")
+        ctx.add_interaction("fair_price")
         _log(db, wa_number, lang, incoming, "main_menu", "fair_price")
         return _safe(get_fair_price_card(lang))
 
     if text == "5":
         save_session(db, session, state="partner_browse")
+        ctx.add_interaction("partner_browse")
         _log(db, wa_number, lang, incoming, "main_menu", "partner_browse")
         return _safe(tr("help_escalation", lang))
 
     if text == "6":
         save_session(db, session, state="temple_area_select", pending_action="advisory")
+        ctx.add_interaction("advisory_select")
         _log(db, wa_number, lang, incoming, "main_menu", "advisory_select")
         return _safe(get_area_menu(lang))
 
     if text == "7":
         save_session(db, session, state="language_select")
+        ctx.add_interaction("change_language")
         _log(db, wa_number, lang, incoming, "main_menu", "change_language")
         return _safe(tr("welcome", lang))
 
@@ -116,7 +146,8 @@ def _handle_main_menu(text: str, session: UserSession, wa_number: str, incoming:
     return _safe(tr("not_understood", lang) + "\n\n" + _main_menu_reply(lang))
 
 
-def _handle_temple_area_select(text: str, session: UserSession, wa_number: str, incoming: str, db: Session) -> str:
+@register_handler("temple_area_select")
+def _handle_temple_area_select(text: str, session: UserSession, ctx: ContextManager, wa_number: str, incoming: str, db: Session) -> str:
     lang = session.language_code
     action = session.pending_action or "timing"
 
@@ -131,15 +162,28 @@ def _handle_temple_area_select(text: str, session: UserSession, wa_number: str, 
             _log(db, wa_number, lang, incoming, "temple_area_select", "area_not_available", area)
             save_session(db, session, state="temple_area_select")
             return _safe(tr("area_not_available", lang) + "\n\n" + get_area_menu(lang))
+        
+        # Context Engineering: Update last visited area
+        ctx.update_visited_area(area)
+        
         save_session(db, session, state="area_temple_select", selected_area=area, pending_action=action)
         _log(db, wa_number, lang, incoming, "temple_area_select", "select_area", area)
         return _safe(get_area_temple_menu(area, lang))
 
     _log(db, wa_number, lang, incoming, "temple_area_select", "not_understood", text)
-    return _safe(tr("not_understood", lang) + "\n\n" + get_area_menu(lang))
+    
+    # Context Engineering: Suggest based on context if input not understood
+    suggestion = ""
+    suggested_area = ctx.get_suggested_area()
+    if suggested_area:
+        # Simple suggestion if they've been here before
+        suggestion = f"\n\n(Tip: You previously looked at {suggested_area.title()})"
+        
+    return _safe(tr("not_understood", lang) + "\n\n" + get_area_menu(lang) + suggestion)
 
 
-def _handle_area_temple_select(text: str, session: UserSession, wa_number: str, incoming: str, db: Session) -> str:
+@register_handler("area_temple_select")
+def _handle_area_temple_select(text: str, session: UserSession, ctx: ContextManager, wa_number: str, incoming: str, db: Session) -> str:
     lang = session.language_code
     area = session.selected_area or "vrindavan"
     action = session.pending_action or "timing"
@@ -155,6 +199,10 @@ def _handle_area_temple_select(text: str, session: UserSession, wa_number: str, 
         return _safe(tr("not_understood", lang) + "\n\n" + get_area_temple_menu(area, lang))
 
     temple_code = area_map[text]
+    
+    # Context Engineering: Update last visited temple
+    ctx.update_visited_temple(temple_code)
+    
     if action == "timing":
         save_session(db, session, state="main_menu", selected_temple=temple_code)
         _log(db, wa_number, lang, incoming, "area_temple_select", "get_timing", temple_code)
@@ -170,7 +218,8 @@ def _handle_area_temple_select(text: str, session: UserSession, wa_number: str, 
     return _safe(get_advisories(db, temple_code, lang))
 
 
-def _handle_route_from_select(text: str, session: UserSession, wa_number: str, incoming: str, db: Session) -> str:
+@register_handler("route_from_select")
+def _handle_route_from_select(text: str, session: UserSession, ctx: ContextManager, wa_number: str, incoming: str, db: Session) -> str:
     lang = session.language_code
     temple_code = session.selected_temple or ""
 
@@ -189,7 +238,8 @@ def _handle_route_from_select(text: str, session: UserSession, wa_number: str, i
     return _safe(get_routes(db, from_code, temple_code, lang))
 
 
-def _handle_partner_browse(text: str, session: UserSession, wa_number: str, incoming: str, db: Session) -> str:
+@register_handler("partner_browse")
+def _handle_partner_browse(text: str, session: UserSession, ctx: ContextManager, wa_number: str, incoming: str, db: Session) -> str:
     lang = session.language_code
     save_session(db, session, state="main_menu")
     if text == "0":
@@ -199,7 +249,7 @@ def _handle_partner_browse(text: str, session: UserSession, wa_number: str, inco
     return _safe(tr("help_escalation", lang))
 
 
-def _handle_help(session: UserSession, wa_number: str, incoming: str, db: Session) -> str:
+def _handle_help(session: UserSession, ctx: ContextManager, wa_number: str, incoming: str, db: Session) -> str:
     lang = session.language_code
     db.add(
         SupportRequest(
@@ -220,28 +270,27 @@ def process_message(wa_number: str, incoming: str, db: Session) -> str:
     lang = session.language_code
     text = incoming.strip().lower()
 
+    # System Design: Initialize Context Manager
+    ctx = ContextManager(session)
+
     if text in ENTRY_TRIGGERS:
         save_session(db, session, state="main_menu")
+        ctx.add_interaction("entry_trigger")
         _log(db, wa_number, lang, incoming, "any", "entry_trigger")
         return _safe(_main_menu_reply(lang))
 
     if text == "help":
-        return _handle_help(session, wa_number, incoming, db)
+        ctx.add_interaction("help")
+        return _handle_help(session, ctx, wa_number, incoming, db)
 
+    # System Design: Use Registry-based Dispatch
     state = session.current_state
-    if state == "language_select":
-        return _handle_language_select(text, session, wa_number, incoming, db)
-    if state == "main_menu":
-        return _handle_main_menu(text, session, wa_number, incoming, db)
-    if state == "temple_area_select":
-        return _handle_temple_area_select(text, session, wa_number, incoming, db)
-    if state == "area_temple_select":
-        return _handle_area_temple_select(text, session, wa_number, incoming, db)
-    if state == "route_from_select":
-        return _handle_route_from_select(text, session, wa_number, incoming, db)
-    if state == "partner_browse":
-        return _handle_partner_browse(text, session, wa_number, incoming, db)
+    handler = HANDLER_REGISTRY.get(state)
+    
+    if handler:
+        return handler(text, session, ctx, wa_number, incoming, db)
 
+    # Fallback for unknown states
     save_session(db, session, state="main_menu")
     _log(db, wa_number, lang, incoming, state, "unknown_state", status="error")
     return _safe(_main_menu_reply(lang))

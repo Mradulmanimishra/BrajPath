@@ -45,7 +45,7 @@ The application currently includes:
 ## Project Structure
 
 ```text
-brajpath/
+braj_sahayak/
 |-- app/
 |   |-- api/
 |   |   `-- webhook.py

@@ -148,7 +148,17 @@ def _fmt_time(t: object) -> str:
  
 # ── session helpers ─────────────────────────────────────────────────────────── 
  
-def get_or_create_session(db: Session, wa_number: str) -> UserSession: 
+def get_or_create_session(db: Session, wa_number: str) -> UserSession:
+    """
+    Retrieve an existing user session or create a new one for the given WhatsApp number.
+    
+    Args:
+        db: SQLAlchemy session
+        wa_number: Unique WhatsApp identifier
+        
+    Returns:
+        UserSession object
+    """
     session = db.execute( 
         select(UserSession).where(UserSession.wa_number == wa_number) 
     ).scalar_one_or_none() 
@@ -175,6 +185,19 @@ def save_session(
     pending_action: Optional[str] = None, 
     selected_area: Optional[str] = None, 
 ) -> None: 
+    """
+    Update and persist user session attributes.
+    
+    Args:
+        db: SQLAlchemy session
+        session: UserSession object to update
+        state: New state for the state machine
+        lang: User's preferred language code
+        selected_temple: Currently active temple code
+        selected_route_from: Origin point for routing
+        pending_action: Context for the next state
+        selected_area: Chosen geographical area
+    """
     now = datetime.now(IST).replace(tzinfo=None) 
     if state is not None: 
         session.prev_state = session.current_state 

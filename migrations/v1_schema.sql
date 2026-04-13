@@ -1,5 +1,5 @@
 -- ============================================================
--- BRAJ SAHAYAK
+-- BRAJPATH
 -- PostgreSQL schema aligned with app/db/models.py
 -- ============================================================
 
@@ -167,6 +167,7 @@ CREATE TABLE user_sessions (
     selected_route_from VARCHAR(60),
     pending_action      VARCHAR(20),
     selected_area       VARCHAR(50),
+    context_data        TEXT,
     message_count       INT NOT NULL DEFAULT 0,
     updated_at          TIMESTAMP DEFAULT NOW(),
     created_at          TIMESTAMP DEFAULT NOW()

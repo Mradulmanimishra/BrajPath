@@ -217,6 +217,7 @@ class UserSession(Base):
     selected_route_from = Column(String(60))
     pending_action = Column(String(20))
     selected_area = Column(String(50))
+    context_data = Column(Text)  # Stores JSON context for context engineering
     message_count = Column(Integer, default=0, nullable=False)
     updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow)
     created_at = Column(DateTime, default=_utcnow)
