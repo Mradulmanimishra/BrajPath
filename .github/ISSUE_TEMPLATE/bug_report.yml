@@ -1,0 +1,26 @@
+name: 🐛 Bug Report
+description: Create a report to help us improve BrajPath
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to fill out this bug report!
+  - type: textarea
+    id: clear-reproduction
+    attributes:
+      label: Clear and concise reproduction steps
+      description: Describe what you did, what you expected to happen, and what actually happened.
+      placeholder: |
+        1. User sends 'hi'
+        2. Bot responds in English instead of chosen Hindi
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: |
+        Are you running locally with SQLite? Or in production with PostgreSQL?
+    validations:
+      required: true
