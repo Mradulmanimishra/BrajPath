@@ -24,14 +24,56 @@ A lightweight, "WhatsApp-first" infrastructure that delivers verified, real-time
 
 ## 🛠️ Technical Architecture (For CTOs & Tech Experts)
 
-### 1. Registry-Based State Machine
+### 1. System Infrastructure
+```mermaid
+graph TD
+    User((Pilgrim)) -- WhatsApp --> Twilio[Twilio API Gateway]
+    Twilio -- Webhook/POST --> API[FastAPI Webhook Layer]
+    
+    subgraph Core_Engine [BrajPath Core Engine]
+        API --> SM[State Machine Dispatcher]
+        SM -- Registry-based Handlers --> Logic{Business Logic}
+        Logic --> TS[Temple Service]
+        Logic -- Context Engineering --> CM[Session Context Manager]
+    end
+    
+    subgraph Persistence_Layer [Persistence Layer]
+        TS --> DB[(PostgreSQL / SQLite)]
+        CM --> DB
+        DB -- JSON Context --> CM
+    end
+    
+    Logic -- TwiML Response --> Twilio
+```
+
+### 2. Registry-Based State Machine
 Unlike traditional nested `if-else` bots, BrajPath utilizes a **Registry-based Handler Pattern**. This decouples conversation logic from the core engine, allowing developers to register new states/features using decorators (`@register_handler`).
 
-### 2. Context Engineering Layer
+### 3. Context Engineering Layer
 The system implements a sophisticated **Session Context Manager** that tracks:
 - **Interaction History**: Last 10 user intents for behavioral analysis.
 - **Geospatial Memory**: Remembers last visited temples and areas to offer predictive navigation tips.
 - **Persistence**: Structured JSON storage in PostgreSQL/SQLite for long-term user profile building.
+
+### 4. Conversation Flow Logic
+```mermaid
+stateDiagram-v2
+    [*] --> language_select
+    language_select --> main_menu: Set Language
+    
+    state main_menu {
+        [*] --> MenuOptions
+        MenuOptions --> temple_area_select: Choice 2, 3, 6
+        MenuOptions --> fair_price: Choice 4
+        MenuOptions --> partner_browse: Choice 5
+        MenuOptions --> language_select: Choice 7
+    }
+    
+    temple_area_select --> area_temple_select: Choice Area (1-4)
+    area_temple_select --> route_from_select: Choice Temple (If Route)
+    route_from_select --> main_menu: Complete Route
+    area_temple_select --> main_menu: Timing / Advisory Shown
+```
 
 ### 3. Enterprise-Grade Webhook Security
 - **Twilio Signature Validation**: Prevents spoofing attacks in production.
