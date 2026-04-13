@@ -107,12 +107,12 @@ def tr(key: str, lang: str) -> str:
  
 # ── season logic ────────────────────────────────────────────────────────────── 
  
-def _current_season(now_ist: datetime) -> str: 
-    m = now_ist.month 
-    if m in (11, 12, 1, 2): 
-         return "winter" 
-    if m in (7, 8, 9, 10): 
-         return "monsoon" 
+def _current_season(now_ist: datetime) -> str:
+    m = now_ist.month
+    if m in (11, 12, 1, 2):
+        return "winter"
+    if m in (7, 8, 9, 10):
+        return "monsoon"
     return "summer" 
  
  
