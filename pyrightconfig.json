@@ -1,0 +1,17 @@
+{
+  "typeCheckingMode": "basic",
+  "pythonVersion": "3.14",
+  "pythonPlatform": "Windows",
+  "include": ["app"],
+  "exclude": ["**/__pycache__", "**/.*"],
+  "venvPath": ".",
+  "defineConstant": {
+    "DEBUG": true
+  },
+  "reportMissingImports": false,
+  "reportMissingTypeStubs": false,
+  "reportGeneralTypeIssues": true,
+  "reportOptionalMemberAccess": false,
+  "reportOptionalSubscript": false,
+  "reportOptionalOperand": false
+}

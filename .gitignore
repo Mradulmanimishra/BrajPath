@@ -1,0 +1,11 @@
+.venv/
+.uv-cache/
+__pycache__/
+*.pyc
+braj_sahayak.db
+braj_sahayak.egg-info/
+.pytest_cache/
+pytest-cache-files-*/
+server.stderr.log
+server.stdout.log
+.env

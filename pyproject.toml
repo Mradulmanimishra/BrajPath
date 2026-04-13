@@ -1,0 +1,40 @@
+[tool.pylance]
+typeCheckingMode = "basic"
+
+[tool.pyright]
+typeCheckingMode = "basic"
+pythonVersion = "3.14"
+include = ["app"]
+exclude = ["**/__pycache__", "**/.*"]
+reportMissingImports = false
+reportMissingTypeStubs = false
+
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+exclude = ["migrations*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[project]
+name = "brajpath"
+version = "1.0.0"
+description = "BrajPath is a multilingual WhatsApp assistant for temple guidance in Mathura and Vrindavan"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi==0.115.0",
+  "uvicorn[standard]==0.30.6",
+  "sqlalchemy==2.0.36",
+  "pg8000==1.31.2",
+  "pydantic-settings==2.4.0",
+  "twilio==9.3.2",
+  "pytz==2024.2",
+  "python-multipart==0.0.9",
+  "alembic==1.13.3",
+  "pytest==8.3.5"
+]
