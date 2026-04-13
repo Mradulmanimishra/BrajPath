@@ -1,12 +1,6 @@
 from __future__ import annotations
 
-"""
-State Machine Service for BrajPath.
-Manages conversation flows, state transitions, and user interaction logic.
-Uses a Registry-based System Design for modularity and scalability.
-"""
-
-from typing import Callable, Optional
+from typing import Callable
 
 from sqlalchemy.orm import Session
 
@@ -27,6 +21,12 @@ from app.services.temple_service import (
     save_session,
     tr,
 )
+
+"""
+State Machine Service for BrajPath.
+Manages conversation flows, state transitions, and user interaction logic.
+Uses a Registry-based System Design for modularity and scalability.
+"""
 
 LANG_MAP: dict[str, str] = {"1": "en", "2": "hi", "3": "bn", "4": "ta"}
 ENTRY_TRIGGERS: frozenset[str] = frozenset({"hi", "hello", "menu", "start", "radhe", "jai shree krishna", "hare krishna", "hare ram"})

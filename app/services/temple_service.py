@@ -90,7 +90,7 @@ IST = pytz.timezone("Asia/Kolkata")
 _TRANSLATIONS: dict[str, dict[str, str]] = {} 
  
  
- def _load_translations() -> dict[str, dict[str, str]]: 
+def _load_translations() -> dict[str, dict[str, str]]: 
     global _TRANSLATIONS 
     if not _TRANSLATIONS: 
         path = Path(__file__).parent.parent / "data" / "translations.json" 
