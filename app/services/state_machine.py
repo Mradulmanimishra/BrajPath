@@ -132,10 +132,10 @@ def _handle_main_menu(text: str, session: UserSession, ctx: ContextManager, wa_n
         return _safe(get_fair_price_card(lang))
 
     if text == "5":
-        save_session(db, session, state="partner_browse")
+        save_session(db, session, state="partner_category_select")
         ctx.add_interaction("partner_browse")
         _log(db, wa_number, lang, incoming, "main_menu", "partner_browse")
-        return _safe(tr("help_escalation", lang))
+        return _safe(get_partner_categories_menu(db, lang))
 
     if text == "6":
         save_session(db, session, state="temple_area_select", pending_action="advisory")
@@ -251,16 +251,6 @@ def _handle_route_from_select(text: str, session: UserSession, ctx: ContextManag
     return _safe(get_routes(db, from_code, temple_code, lang))
 
 
-@register_handler("partner_browse")
-def _handle_partner_browse(text: str, session: UserSession, ctx: ContextManager, wa_number: str, incoming: str, db: Session) -> str:
-    """Initial partner browsing - shows category selection menu."""
-    lang = session.language_code
-    save_session(db, session, state="partner_category_select")
-    ctx.add_interaction("partner_browse")
-    _log(db, wa_number, lang, incoming, "main_menu", "partner_browse")
-    return _safe(get_partner_categories_menu(db, lang))
-
-
 @register_handler("partner_category_select")
 def _handle_partner_category_select(text: str, session: UserSession, ctx: ContextManager, wa_number: str, incoming: str, db: Session) -> str:
     """User selects a partner category - fetches and displays partners."""
@@ -292,13 +282,15 @@ def _handle_partner_category_select(text: str, session: UserSession, ctx: Contex
     
     selected_category = categories[idx]
     save_session(db, session, state="partner_list", pending_action=f"cat_{selected_category.id}")
-    ctx.add_interaction("partner_category_select", {"category": selected_category.name})
+    ctx.add_interaction("partner_category_select")
     _log(db, wa_number, lang, incoming, "partner_category_select", "view_partners", selected_category.code)
     
     return _safe(get_partners_in_category(db, selected_category.id, lang))
 
 
-
+@register_handler("partner_list")
+def _handle_partner_list(text: str, session: UserSession, ctx: ContextManager, wa_number: str, incoming: str, db: Session) -> str:
+    """Handle partner list interactions - back to categories or main menu."""
     lang = session.language_code
     
     if text == "0":
@@ -331,7 +323,8 @@ def _handle_help(session: UserSession, ctx: ContextManager, wa_number: str, inco
 def process_message(wa_number: str, incoming: str, db: Session) -> str:
     session = get_or_create_session(db, wa_number)
     # Validate language code is supported, default to 'en' if invalid
-    lang = session.language_code if session.language_code in ("en", "hi", "bn", "ta") else "en"
+    supported_langs = set(LANG_MAP.values())
+    lang = session.language_code if session.language_code in supported_langs else "en"
     if lang != session.language_code:
         session.language_code = lang
     text = incoming.strip().lower()
