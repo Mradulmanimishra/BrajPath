@@ -20,11 +20,28 @@ logger = logging.getLogger("brajpath.app")
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    """Application lifecycle: startup and shutdown."""
+    # Startup
     try:
         Base.metadata.create_all(bind=engine)
-    except Exception:
-        logger.exception("Database initialization failed during startup")
+        logger.info("✅ Database tables created or verified")
+    except Exception as e:
+        logger.exception("❌ Database initialization failed: %s", e)
+        raise
+
+    # Validate production config
+    if settings.APP_ENV == "production":
+        try:
+            settings.validate_prod_config()
+            logger.info("✅ Production configuration validated")
+        except AssertionError as e:
+            logger.error("❌ Production config missing: %s", e)
+            raise
+            
     yield
+    
+    # Shutdown (cleanup if needed)
+    logger.info("Application shutting down")
 
 
 app = FastAPI(
@@ -45,10 +62,7 @@ app.include_router(webhook_router, tags=["WhatsApp"])
 
 
 @app.get("/", tags=["Health"])
-def health():
-    return {"status": "ok", "service": "BrajPath", "version": "1.0.0"}
-
-
 @app.get("/health", tags=["Health"])
-def health_check():
-    return {"status": "ok"}
+def health():
+    """Health check endpoint. Returns application status."""
+    return {"status": "ok", "service": "BrajPath", "version": "1.0.0"}

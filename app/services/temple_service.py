@@ -434,3 +434,81 @@ def get_area_temple_menu(area_code: str, lang: str) -> str:
 def get_fair_price_card(lang: str) -> str:
     """Return the community fare guide card."""
     return tr("fair_price_menu", lang)
+
+
+# ── partner browsing ────────────────────────────────────────────────────────
+
+def get_partner_categories_menu(db: Session, lang: str) -> str:
+    """Return formatted navigation menu to browse partner categories.
+    
+    Args:
+        db: SQLAlchemy session
+        lang: Language code ('en', 'hi', 'bn', 'ta')
+        
+    Returns:
+        Menu card showing partner categories with selection numbers.
+    """
+    from app.db.models import PartnerCategory
+    
+    categories = db.execute(
+        select(PartnerCategory)
+        .order_by(PartnerCategory.priority_order)
+    ).scalars().all()
+    
+    if not categories:
+        return tr("no_partners", lang)
+    
+    name_field = f"name_{lang}" if lang in ("en", "hi", "bn", "ta") else "name_en"
+    lines = [tr("select_partner_category", lang) or "🤝 *Select Service Category:*\n"]
+    
+    for idx, cat in enumerate(categories, 1):
+        icon = cat.icon_emoji or "•"
+        cat_name = getattr(cat, name_field, None) or cat.name
+        lines.append(f"{idx}. {icon} {cat_name}")
+    
+    lines.append(f"0. {tr('back', lang) or 'Back'}")
+    return "\n".join(lines)
+
+
+def get_partners_in_category(db: Session, category_id: int, lang: str) -> str:
+    """Return formatted list of partners in a category.
+    
+    Args:
+        db: SQLAlchemy session
+        category_id: Partner category ID
+        lang: Language code
+        
+    Returns:
+        Card showing partners with contact information.
+    """
+    from app.db.models import Partner, PartnerCategory
+    
+    category = db.execute(
+        select(PartnerCategory).where(PartnerCategory.id == category_id)
+    ).scalar_one_or_none()
+    
+    if not category:
+        return tr("not_understood", lang)
+    
+    partners = db.execute(
+        select(Partner)
+        .where(Partner.category_id == category_id, Partner.is_active.is_(True))
+    ).scalars().all()
+    
+    if not partners:
+        cat_name = category.name
+        return f"😔 No verified partners in {cat_name} yet. Type *help* to contact us."
+    
+    lines = [f"🤝 *{category.name}*\n"]
+    for partner in partners[:5]:  # Limit to 5 for WhatsApp message length
+        lines.append(f"📍 *{partner.name}*")
+        if partner.phone:
+            lines.append(f"   📞 {partner.phone}")
+        if partner.whatsapp:
+            lines.append(f"   💬 WhatsApp: {partner.whatsapp}")
+        if partner.area:
+            lines.append(f"   📌 {partner.area}")
+        lines.append("")
+    
+    lines.append("0. " + (tr("back", lang) or "Back"))
+    return "\n".join(lines)

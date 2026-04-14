@@ -1,6 +1,11 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
+    """Application configuration loaded from environment variables.
+    
+    Environment variables should be prefixed with BRAJPATH_ (e.g., BRAJPATH_DATABASE_URL)
+    or configured via .env file in the working directory.
+    """
     DATABASE_URL: str = "sqlite:///./brajpath.db"
     TWILIO_ACCOUNT_SID: str = ""
     TWILIO_AUTH_TOKEN: str = ""
@@ -8,10 +13,16 @@ class Settings(BaseSettings):
     PUBLIC_WEBHOOK_BASE_URL: str = ""
     ADMIN_WA_NUMBER: str = ""
     ALLOWED_ORIGINS: list[str] = []
-    APP_ENV: str = "production"
+    APP_ENV: str = "development"
     APP_TIMEZONE: str = "Asia/Kolkata"
     LOG_LEVEL: str = "INFO"
 
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+    
+    def validate_prod_config(self) -> None:
+        """Validate that critical settings are configured for production."""
+        if self.APP_ENV == "production":
+            assert self.TWILIO_AUTH_TOKEN, "TWILIO_AUTH_TOKEN required in production"
+            assert self.TWILIO_ACCOUNT_SID, "TWILIO_ACCOUNT_SID required in production"
 
 settings = Settings()

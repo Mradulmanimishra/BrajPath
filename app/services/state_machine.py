@@ -21,6 +21,8 @@ from app.services.temple_service import (
     get_fair_price_card,
     get_open_temples,
     get_or_create_session,
+    get_partner_categories_menu,
+    get_partners_in_category,
     get_routes,
     get_timing_card,
     save_session,
@@ -52,6 +54,18 @@ def _log(
     entity: str = "",
     status: str = "ok",
 ) -> None:
+    """Log query details for analytics and debugging.
+    
+    Args:
+        db: SQLAlchemy session
+        wa_number: User's WhatsApp number
+        lang: Language code used
+        incoming: Raw user input
+        state: Current state machine state
+        intent: Detected user intent
+        entity: Detected entity/parameter
+        status: Response status ('ok', 'error', etc)
+    """
     db.add(
         QueryLog(
             wa_number=wa_number,
@@ -239,13 +253,63 @@ def _handle_route_from_select(text: str, session: UserSession, ctx: ContextManag
 
 @register_handler("partner_browse")
 def _handle_partner_browse(text: str, session: UserSession, ctx: ContextManager, wa_number: str, incoming: str, db: Session) -> str:
+    """Initial partner browsing - shows category selection menu."""
     lang = session.language_code
-    save_session(db, session, state="main_menu")
+    save_session(db, session, state="partner_category_select")
+    ctx.add_interaction("partner_browse")
+    _log(db, wa_number, lang, incoming, "main_menu", "partner_browse")
+    return _safe(get_partner_categories_menu(db, lang))
+
+
+@register_handler("partner_category_select")
+def _handle_partner_category_select(text: str, session: UserSession, ctx: ContextManager, wa_number: str, incoming: str, db: Session) -> str:
+    """User selects a partner category - fetches and displays partners."""
+    from app.db.models import PartnerCategory
+    from sqlalchemy import select
+    
+    lang = session.language_code
+    
+    # Handle back to main menu
     if text == "0":
-        _log(db, wa_number, lang, incoming, "partner_browse", "back")
+        save_session(db, session, state="main_menu")
+        _log(db, wa_number, lang, incoming, "partner_category_select", "back")
         return _safe(_main_menu_reply(lang))
-    _log(db, wa_number, lang, incoming, "partner_browse", "no_partners")
-    return _safe(tr("help_escalation", lang))
+    
+    # Get category list to map selection to ID
+    categories = db.execute(
+        select(PartnerCategory)
+        .order_by(PartnerCategory.priority_order)
+    ).scalars().all()
+    
+    if not categories or not text.isdigit():
+        _log(db, wa_number, lang, incoming, "partner_category_select", "invalid_category", text)
+        return _safe(tr("not_understood", lang))
+    
+    idx = int(text) - 1
+    if idx < 0 or idx >= len(categories):
+        _log(db, wa_number, lang, incoming, "partner_category_select", "invalid_category", text)
+        return _safe(tr("not_understood", lang))
+    
+    selected_category = categories[idx]
+    save_session(db, session, state="partner_list", pending_action=f"cat_{selected_category.id}")
+    ctx.add_interaction("partner_category_select", {"category": selected_category.name})
+    _log(db, wa_number, lang, incoming, "partner_category_select", "view_partners", selected_category.code)
+    
+    return _safe(get_partners_in_category(db, selected_category.id, lang))
+
+
+
+    lang = session.language_code
+    
+    if text == "0":
+        save_session(db, session, state="partner_category_select", pending_action=None)
+        _log(db, wa_number, lang, incoming, "partner_list", "back")
+        return _safe(get_partner_categories_menu(db, lang))
+    
+    # Other options (like contacting partner) not yet implemented
+    _log(db, wa_number, lang, incoming, "partner_list", "invalid_action", text)
+    save_session(db, session, state="main_menu")
+    return _safe(_main_menu_reply(lang))
 
 
 def _handle_help(session: UserSession, ctx: ContextManager, wa_number: str, incoming: str, db: Session) -> str:
@@ -266,7 +330,10 @@ def _handle_help(session: UserSession, ctx: ContextManager, wa_number: str, inco
 
 def process_message(wa_number: str, incoming: str, db: Session) -> str:
     session = get_or_create_session(db, wa_number)
-    lang = session.language_code
+    # Validate language code is supported, default to 'en' if invalid
+    lang = session.language_code if session.language_code in ("en", "hi", "bn", "ta") else "en"
+    if lang != session.language_code:
+        session.language_code = lang
     text = incoming.strip().lower()
 
     # System Design: Initialize Context Manager

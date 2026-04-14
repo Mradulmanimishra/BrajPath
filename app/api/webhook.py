@@ -41,9 +41,11 @@ async def validate_twilio_request(request: Request) -> None:
 
 
 def _validate_phone_number(wa_number: str) -> bool:
-    """Validate WhatsApp phone number format (E.164 format: +[1-9]{1,15})."""
-    pattern = r"^\+?[1-9]\d{1,14}$"
-    return bool(re.match(pattern, wa_number))
+    """Validate WhatsApp phone number format (E.164 format or country code without +).
+    Accepts formats like +919876543210, 919876543210, +1234567890."""
+    cleaned = wa_number.replace("-", "").replace(" ", "")
+    pattern = r"^\+?[0-9]{1,15}$"
+    return bool(re.match(pattern, cleaned))
 
 
 @router.post("/whatsapp/webhook", response_class=PlainTextResponse)
@@ -74,9 +76,9 @@ async def whatsapp_webhook(
         db.rollback()
         logger.warning("Invalid input for %s: %s", wa_number, e)
         reply_text = "Sorry, I didn't understand. Please try again or type menu."
-    except Exception:
+    except Exception as e:
         db.rollback()
-        logger.exception("State machine error for %s", wa_number)
+        logger.exception("State machine error for %s: %s", wa_number, str(e))
         reply_text = "Sorry, something went wrong. Please try again or type menu."
 
     elapsed_ms = int((time.perf_counter() - started_at) * 1000)

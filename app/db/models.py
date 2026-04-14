@@ -43,6 +43,7 @@ class Temple(Base):
     routes = relationship("Route", back_populates="temple", cascade="all, delete-orphan")
 
     def display_name(self, lang: str = "en") -> str:
+        """Get temple name in specified language. Currently not used; kept for future UI enhancements."""
         return {"hi": self.name_hi, "bn": self.name_bn, "ta": self.name_ta}.get(lang) or self.name_en
 
 
@@ -149,6 +150,11 @@ class Route(Base):
 
 
 class FareGuide(Base):
+    """
+    Legacy model for community fare information.
+    Currently not actively used in state machine handlers.
+    Kept for potential future partner integration features.
+    """
     __tablename__ = "fare_guides"
 
     id = Column(Integer, primary_key=True)
@@ -165,6 +171,11 @@ class FareGuide(Base):
 
 
 class PartnerCategory(Base):
+    """
+    Legacy model for partner classification.
+    Currently not actively used in state machine handlers.
+    Kept for potential future partner integration features (option 5 in main menu).
+    """
     __tablename__ = "partner_categories"
 
     id = Column(Integer, primary_key=True)
@@ -180,6 +191,11 @@ class PartnerCategory(Base):
 
 
 class Partner(Base):
+    """
+    Legacy model for partner/business listings.
+    Currently not actively used in state machine handlers.
+    Kept for potential future partner integration features.
+    """
     __tablename__ = "partners"
 
     id = Column(Integer, primary_key=True)
@@ -219,6 +235,7 @@ class UserSession(Base):
     selected_area = Column(String(50))
     context_data = Column(Text)  # Stores JSON context for context engineering
     message_count = Column(Integer, default=0, nullable=False)
+    last_seen_at = Column(DateTime, default=_utcnow, onupdate=_utcnow)
     updated_at = Column(DateTime, default=_utcnow, onupdate=_utcnow)
     created_at = Column(DateTime, default=_utcnow)
 
