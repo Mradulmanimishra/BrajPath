@@ -29,8 +29,11 @@ def _request_url_for_validation(request: Request) -> str:
 
 
 async def validate_twilio_request(request: Request) -> None:
+    # Skip validation in development if no auth token is set
     if not settings.TWILIO_AUTH_TOKEN:
-        raise HTTPException(status_code=500, detail="TWILIO_AUTH_TOKEN is required in production")
+        if settings.APP_ENV == "production":
+            raise HTTPException(status_code=500, detail="TWILIO_AUTH_TOKEN is required in production")
+        return  # Skip validation in development
 
     form = await request.form()
     validator = RequestValidator(settings.TWILIO_AUTH_TOKEN)
