@@ -57,14 +57,14 @@ def test_timing_flow_returns_timing_card(db_session: Session) -> None:
 def test_route_flow_returns_route_card(db_session: Session) -> None:
     reply = _play(db_session, "+910000000002", ["1", "3", "1", "1", "1"])
 
-    assert "*Mathura Junction Railway Station -> Shri Banke Bihari Mandir*" in reply
+    assert "*Mathura Junction Railway Station → Shri Banke Bihari Mandir*" in reply
     assert "E Rickshaw" in reply
-    assert "Fares are community estimates" in reply
+    assert "Fares are community-reported typical ranges" in reply
 
 
 def test_advisory_flow_returns_advisories(db_session: Session) -> None:
     reply = _play(db_session, "+910000000003", ["1", "6", "1", "1"])
 
-    assert "*Tips for Shri Banke Bihari Mandir*" in reply
-    assert "[Crowd]" in reply
-    assert "[Mobile]" in reply
+    assert "*Advisories for Shri Banke Bihari Mandir*" in reply
+    assert "Expect heavy crowds in the evening" in reply
+    assert "Mobile phones may be restricted inside" in reply
