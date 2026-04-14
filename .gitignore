@@ -2,8 +2,8 @@
 .uv-cache/
 __pycache__/
 *.pyc
-braj_sahayak.db
-braj_sahayak.egg-info/
+*.db
+*.egg-info/
 .pytest_cache/
 pytest-cache-files-*/
 server.stderr.log
