@@ -3,7 +3,6 @@ Edge case and validation tests for BrajPath.
 Tests phone validation, language fallback, and error handling.
 """
 import re
-import pytest
 from sqlalchemy.orm import Session
 
 from app.services.state_machine import LANG_MAP, process_message
