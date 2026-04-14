@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import re
 import time
 from urllib.parse import urlsplit, urlunsplit
 
@@ -28,9 +29,6 @@ def _request_url_for_validation(request: Request) -> str:
 
 
 async def validate_twilio_request(request: Request) -> None:
-    if settings.APP_ENV == "development":
-        return
-
     if not settings.TWILIO_AUTH_TOKEN:
         raise HTTPException(status_code=500, detail="TWILIO_AUTH_TOKEN is required in production")
 
@@ -40,6 +38,12 @@ async def validate_twilio_request(request: Request) -> None:
     request_url = _request_url_for_validation(request)
     if not validator.validate(request_url, dict(form), signature):
         raise HTTPException(status_code=403, detail="Invalid Twilio signature")
+
+
+def _validate_phone_number(wa_number: str) -> bool:
+    """Validate WhatsApp phone number format (E.164 format: +[1-9]{1,15})."""
+    pattern = r"^\+?[1-9]\d{1,14}$"
+    return bool(re.match(pattern, wa_number))
 
 
 @router.post("/whatsapp/webhook", response_class=PlainTextResponse)
@@ -59,9 +63,17 @@ async def whatsapp_webhook(
     if not wa_number or not incoming_text:
         return PlainTextResponse("", status_code=200)
 
+    if not _validate_phone_number(wa_number):
+        logger.warning("Invalid phone number format: %s", wa_number)
+        return PlainTextResponse("", status_code=400)
+
     try:
         reply_text = process_message(wa_number, incoming_text, db)
         db.commit()
+    except ValueError as e:
+        db.rollback()
+        logger.warning("Invalid input for %s: %s", wa_number, e)
+        reply_text = "Sorry, I didn't understand. Please try again or type menu."
     except Exception:
         db.rollback()
         logger.exception("State machine error for %s", wa_number)

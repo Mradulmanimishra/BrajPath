@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.webhook import router as webhook_router
+from app.config import settings
 from app.db.models import Base
 from app.db.session import engine
 
@@ -35,9 +36,9 @@ app = FastAPI(
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=settings.ALLOWED_ORIGINS if settings.ALLOWED_ORIGINS else [],
     allow_methods=["POST", "GET"],
-    allow_headers=["*"],
+    allow_headers=["Content-Type"],
 )
 
 app.include_router(webhook_router, tags=["WhatsApp"])

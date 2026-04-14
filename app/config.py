@@ -7,7 +7,8 @@ class Settings(BaseSettings):
     TWILIO_WHATSAPP_FROM: str = "whatsapp:+14155238886"
     PUBLIC_WEBHOOK_BASE_URL: str = ""
     ADMIN_WA_NUMBER: str = ""
-    APP_ENV: str = "development"
+    ALLOWED_ORIGINS: list[str] = []
+    APP_ENV: str = "production"
     APP_TIMEZONE: str = "Asia/Kolkata"
     LOG_LEVEL: str = "INFO"
 

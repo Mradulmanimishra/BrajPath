@@ -22,7 +22,7 @@ class SessionContext(BaseModel):
             return cls()
         try:
             return cls.model_validate_json(data)
-        except Exception:
+        except (ValueError, TypeError):
             return cls()
 
     def to_json(self) -> str:
